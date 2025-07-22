@@ -1,313 +1,384 @@
 "use client"
 
+import React from "react"
+
 import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Mail, MessageSquare, Phone, Search, Reply, Forward, Archive, Star, Tag, Send } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { inboxApi } from "@/lib/advanced-api"
-import { toast } from "sonner"
-import { formatDistanceToNow } from "date-fns"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Mail,
+  MessageSquare,
+  Phone,
+  Smartphone,
+  Users,
+  Clock,
+  AlertCircle,
+  Send,
+  Archive,
+  Star,
+  Search,
+} from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { inboxApi, teamApi, type InboxMessage } from "@/lib/advanced-api"
 
-const channelIcons = {
+const CHANNEL_ICONS = {
   email: Mail,
   sms: MessageSquare,
   whatsapp: Phone,
   phone: Phone,
-  social: MessageSquare,
+  social: Users,
+  push: Smartphone,
 }
 
-const priorityColors = {
-  high: "bg-red-100 text-red-800",
-  normal: "bg-blue-100 text-blue-800",
-  low: "bg-gray-100 text-gray-800",
+const STATUS_COLORS = {
+  unread: "destructive",
+  read: "secondary",
+  replied: "default",
+  archived: "outline",
 }
 
-const statusColors = {
-  unread: "bg-green-100 text-green-800",
-  read: "bg-blue-100 text-blue-800",
-  replied: "bg-purple-100 text-purple-800",
-  archived: "bg-gray-100 text-gray-800",
+const PRIORITY_COLORS = {
+  low: "outline",
+  normal: "secondary",
+  high: "default",
+  urgent: "destructive",
 }
 
 export function UnifiedInbox() {
-  const [messages, setMessages] = useState([])
-  const [selectedMessage, setSelectedMessage] = useState(null)
+  const [messages, setMessages] = useState<InboxMessage[]>([])
+  const [teamMembers, setTeamMembers] = useState([])
+  const [selectedMessage, setSelectedMessage] = useState<InboxMessage | null>(null)
+  const [replyContent, setReplyContent] = useState("")
+  const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState({
     status: "all",
     channel: "all",
     priority: "all",
-    search: "",
+    assigned: "all",
   })
-  const [replyContent, setReplyContent] = useState("")
-  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    loadMessages()
+    loadData()
   }, [filters])
 
-  const loadMessages = async () => {
+  const loadData = async () => {
+    setLoading(true)
     try {
-      const data = await inboxApi.getMessages(filters)
-      setMessages(data)
+      const [messagesData, teamData] = await Promise.all([
+        inboxApi.getAll(filters.status !== "all" ? { status: filters.status } : {}),
+        teamApi.getAll(),
+      ])
+
+      setMessages(messagesData.data || [])
+      setTeamMembers(teamData.data || [])
     } catch (error) {
-      console.error("Failed to load messages:", error)
-      toast.error("Failed to load messages")
+      console.error("Failed to load inbox data:", error)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleStatusUpdate = async (messageId: string, status: string) => {
+  const handleStatusChange = async (messageId: string, status: string) => {
     try {
-      await inboxApi.updateMessage(messageId, { status })
-      await loadMessages()
-      toast.success("Message status updated")
+      await inboxApi.updateStatus(messageId, status)
+      loadData()
     } catch (error) {
-      console.error("Failed to update status:", error)
-      toast.error("Failed to update message status")
+      console.error("Failed to update message status:", error)
+    }
+  }
+
+  const handleAssignMessage = async (messageId: string, assignedTo: string) => {
+    try {
+      await inboxApi.assignMessage(messageId, assignedTo)
+      loadData()
+    } catch (error) {
+      console.error("Failed to assign message:", error)
     }
   }
 
   const handleReply = async () => {
     if (!selectedMessage || !replyContent.trim()) return
 
-    setLoading(true)
     try {
-      await inboxApi.sendReply(selectedMessage.id, replyContent)
-      await handleStatusUpdate(selectedMessage.id, "replied")
+      await inboxApi.reply(selectedMessage.id, replyContent)
       setReplyContent("")
-      toast.success("Reply sent successfully")
+      setSelectedMessage(null)
+      loadData()
+      alert("Reply sent successfully!")
     } catch (error) {
       console.error("Failed to send reply:", error)
-      toast.error("Failed to send reply")
-    } finally {
-      setLoading(false)
+      alert("Failed to send reply")
     }
   }
 
-  const getChannelIcon = (channel: string) => {
-    const Icon = channelIcons[channel] || MessageSquare
-    return <Icon className="h-4 w-4" />
+  const getChannelIcon = (channelType: string) => {
+    return CHANNEL_ICONS[channelType as keyof typeof CHANNEL_ICONS] || MessageSquare
   }
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+
+    if (diffInHours < 24) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    } else {
+      return date.toLocaleDateString()
+    }
+  }
+
+  const getUnreadCount = () => messages.filter(m => m.status === 'unread').length
+  const getHighPriorityCount = () => messages.filter(m => m.priority === 'high' || m.priority === 'urgent').length
+
   return (
-    <div className="h-screen flex">
-      {/* Sidebar - Message List */}
-      <div className="w-1/3 border-r bg-white">
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-semibold mb-4">Unified Inbox</h2>
-
-          {/* Search and Filters */}
-          <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search messages..."
-                value={filters.search}
-                onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                className="pl-10"
-              />
-            </div>
-
-            <div className="flex space-x-2">
-              <Select
-                value={filters.status}
-                onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="unread">Unread</SelectItem>
-                  <SelectItem value="read">Read</SelectItem>
-                  <SelectItem value="replied">Replied</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={filters.channel}
-                onValueChange={(value) => setFilters((prev) => ({ ...prev, channel: value }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Channel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Channels</SelectItem>
-                  <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
-                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                  <SelectItem value="phone">Phone</SelectItem>
-                  <SelectItem value="social">Social</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Unified Inbox</h1>
+          <p className="text-gray-600 mt-1">Manage all customer communications in one place</p>
         </div>
+        <div className="flex items-center space-x-4">
+          <Badge variant="destructive">{getUnreadCount()} Unread</Badge>
+          <Badge variant="default">{getHighPriorityCount()} High Priority</Badge>
+        </div>
+      </div>
 
-        {/* Message List */}
-        <div className="overflow-y-auto h-full">
-          {messages.map((message: any) => (
-            <div
-              key={message.id}
-              className={cn(
-                "p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors",
-                selectedMessage?.id === message.id && "bg-blue-50 border-blue-200",
-              )}
-              onClick={() => setSelectedMessage(message)}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center space-x-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>
-                      {message.contacts?.first_name?.[0]}
-                      {message.contacts?.last_name?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium text-sm">
-                      {message.contacts?.first_name} {message.contacts?.last_name}
-                    </p>
-                    <p className="text-xs text-gray-500">{message.contacts?.company}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  {getChannelIcon(message.channel)}
-                  <Badge className={cn("text-xs", priorityColors[message.priority])}>{message.priority}</Badge>
-                </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Messages</CardTitle>
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{messages.length}</div>
+            <p className="text-xs text-muted-foreground">All channels</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unread</CardTitle>
+            <AlertCircle className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{getUnreadCount()}</div>
+            <p className="text-xs text-muted-foreground">Needs attention</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">High Priority</CardTitle>
+            <Star className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{getHighPriorityCount()}</div>
+            <p className="text-xs text-muted-foreground">Urgent responses</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Response Time</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">2.5h</div>
+            <p className="text-xs text-muted-foreground">Average response</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters and Search */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Messages</CardTitle>
+          <CardDescription>All customer communications across channels</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4 mb-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Search messages..." className="pl-8" />
               </div>
+            </div>
+            <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="unread">Unread</SelectItem>
+                <SelectItem value="read">Read</SelectItem>
+                <SelectItem value="replied">Replied</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filters.channel} onValueChange={(value) => setFilters(prev => ({ ...prev, channel: value }))}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Channel" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Channels</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="sms">SMS</SelectItem>
+                <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                <SelectItem value="phone">Phone</SelectItem>
+                <SelectItem value="social">Social</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={filters.priority} onValueChange={(value) => setFilters(prev => ({ ...prev, priority: value }))}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priority</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div className="mb-2">
-                {message.subject && <p className="font-medium text-sm mb-1">{message.subject}</p>}
-                <p className="text-sm text-gray-600 line-clamp-2">{message.content}</p>
-              </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Contact</TableHead>
+                <TableHead>Channel</TableHead>
+                <TableHead>Subject/Content</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Assigned</TableHead>
+                <TableHead>Time</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {messages.map((message) => {
+                const ChannelIcon = getChannelIcon(message.channel_type)
+                
+                return (
+                  <TableRow 
+                    key={message.id} 
+                    className={message.status === 'unread' ? 'bg-blue-50' : ''}
+                  >
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">
+                          {message.contacts?.first_name} {message.contacts?.last_name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {message.contacts?.email || message.contacts?.company}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <ChannelIcon className="h-4 w-4 text-gray-500" />
+                        <span className="capitalize">{message.channel_type}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        {message.subject && (
+                          <div className="font-medium text-sm">{message.subject}</div>
+                        )}
+                        <div className="text-sm text-gray-600 truncate max-w-xs">
+                          {message.content}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_COLORS[message.status as keyof typeof STATUS_COLORS] as any}>
+                        {message.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={PRIORITY_COLORS[message.priority as keyof typeof PRIORITY_COLORS] as any}>
+                        {message.priority}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {message.team_members ? (
+                        <span className="text-sm">
+                          {message.team_members.first_name} {message.team_members.last_name}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">Unassigned</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-gray-500">
+                        {formatDate(message.created_at)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setSelectedMessage(message)}
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleStatusChange(message.id, message.status === 'unread' ? 'read' : 'unread')}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleStatusChange(message.id, 'archived')}
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-              <div className="flex items-center justify-between">
-                <Badge className={cn("text-xs", statusColors[message.status])}>{message.status}</Badge>
-                <span className="text-xs text-gray-400">
-                  {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+      {/* Message Detail/Reply Modal */}
+      {selectedMessage && (
+        <Dialog open={!!selectedMessage} onOpenChange={() => setSelectedMessage(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                {React.createElement(getChannelIcon(selectedMessage.channel_type), { className: "h-5 w-5" })}
+                <span>
+                  {selectedMessage.contacts?.first_name} {selectedMessage.contacts?.last_name}
                 </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+              </DialogTitle>
+              <DialogDescription>
+                {selectedMessage.contacts?.email} • {selectedMessage.contacts?.company}
+              </DialogDescription>
+            </DialogHeader>
 
-      {/* Main Content - Message Detail */}
-      <div className="flex-1 flex flex-col">
-        {selectedMessage ? (
-          <>
-            {/* Message Header */}
-            <div className="p-6 border-b bg-white">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback>
-                      {selectedMessage.contacts?.first_name?.[0]}
-                      {selectedMessage.contacts?.last_name?.[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h3 className="font-semibold">
-                      {selectedMessage.contacts?.first_name} {selectedMessage.contacts?.last_name}
-                    </h3>
-                    <p className="text-sm text-gray-500">{selectedMessage.contacts?.email}</p>
-                    <p className="text-sm text-gray-500">{selectedMessage.contacts?.company}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Badge className={cn("text-xs", statusColors[selectedMessage.status])}>
-                    {selectedMessage.status}
-                  </Badge>
-                  <Badge className={cn("text-xs", priorityColors[selectedMessage.priority])}>
-                    {selectedMessage.priority}
-                  </Badge>
-                  {getChannelIcon(selectedMessage.channel)}
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Original Message:</Label>
+                <div className="bg-gray-50 p-3 rounded mt-1">
+                  {selectedMessage.subject && (
+                    <div className="font-medium mb-2">{selectedMessage.subject}</div>
+                  )}
+                  <div className="text-sm whitespace-pre-wrap">{selectedMessage.content}</div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex space-x-2">
-                <Button size="sm" variant="outline" onClick={() => handleStatusUpdate(selectedMessage.id, "read")}>
-                  <Reply className="h-4 w-4 mr-2" />
-                  Mark as Read
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => handleStatusUpdate(selectedMessage.id, "archived")}>
-                  <Archive className="h-4 w-4 mr-2" />
-                  Archive
-                </Button>
-                <Button size="sm" variant="outline">
-                  <Star className="h-4 w-4 mr-2" />
-                  Star
-                </Button>
-                <Button size="sm" variant="outline">
-                  <Forward className="h-4 w-4 mr-2" />
-                  Forward
-                </Button>
-              </div>
-            </div>
-
-            {/* Message Content */}
-            <div className="flex-1 p-6 overflow-y-auto">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{selectedMessage.subject}</CardTitle>
-                    <span className="text-sm text-gray-500">
-                      {formatDistanceToNow(new Date(selectedMessage.created_at), { addSuffix: true })}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="prose max-w-none">
-                    <p className="whitespace-pre-wrap">{selectedMessage.content}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Reply Section */}
-            <div className="p-6 border-t bg-gray-50">
-              <div className="space-y-4">
-                <Label>Reply to {selectedMessage.contacts?.first_name}</Label>
-                <Textarea
-                  placeholder="Type your reply..."
-                  value={replyContent}
-                  onChange={(e) => setReplyContent(e.target.value)}
-                  className="min-h-[100px]"
-                />
-                <div className="flex justify-between">
-                  <div className="flex space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Tag className="h-4 w-4 mr-2" />
-                      Add Tags
-                    </Button>
-                  </div>
-                  <Button onClick={handleReply} disabled={loading || !replyContent.trim()}>
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Reply
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="text-center">
-              <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No message selected</h3>
-              <p className="text-gray-500">Choose a message from the list to view its details</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+              \

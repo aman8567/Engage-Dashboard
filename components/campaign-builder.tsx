@@ -1,5 +1,7 @@
 "use client"
 
+import React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,8 +29,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { campaignsApi, segmentsApi, templatesApi, channelsApi } from "@/lib/advanced-api"
-import { toast } from "sonner"
+import { advancedCampaignsApi, segmentsApi, templatesApi, channelsApi } from "@/lib/advanced-api"
 
 const campaignTypes = [
   { id: "email", name: "Email Campaign", icon: Mail, description: "Send personalized emails to your audience" },
@@ -68,18 +69,17 @@ export function CampaignBuilder() {
   const loadData = async () => {
     try {
       const [segmentsData, channelsData] = await Promise.all([segmentsApi.getAll(), channelsApi.getAll()])
-      setSegments(segmentsData)
-      setChannels(channelsData)
+      setSegments(segmentsData.data || [])
+      setChannels(channelsData.data || [])
     } catch (error) {
       console.error("Failed to load data:", error)
-      toast.error("Failed to load campaign data")
     }
   }
 
   const loadTemplates = async (type: string) => {
     try {
       const templatesData = await templatesApi.getAll(type)
-      setTemplates(templatesData)
+      setTemplates(templatesData.data || [])
     } catch (error) {
       console.error("Failed to load templates:", error)
     }
@@ -97,13 +97,22 @@ export function CampaignBuilder() {
       const campaignPayload = {
         ...campaignData,
         status,
+        trigger_type: campaignData.schedule_type === "immediate" ? "manual" : "scheduled",
+        scheduled_at: date ? date.toISOString() : null,
+        is_ab_test: campaignData.ab_test_enabled,
+        ab_test_config: campaignData.ab_test_enabled ? { percentage: campaignData.ab_test_percentage } : {},
+        goal_type: "engagement",
         created_at: new Date().toISOString(),
       }
 
-      await campaignsApi.create(campaignPayload)
-      toast.success(`Campaign ${status === "draft" ? "saved as draft" : "launched"} successfully!`)
+      const { data, error } = await advancedCampaignsApi.create(campaignPayload)
 
-      // Reset form or redirect
+      if (error) {
+        console.error("Error creating campaign:", error)
+        return
+      }
+
+      // Reset form
       setCampaignData({
         name: "",
         type: "",
@@ -119,9 +128,12 @@ export function CampaignBuilder() {
         settings: {},
       })
       setCurrentStep(1)
+      setDate(undefined)
+
+      alert(`Campaign ${status === "draft" ? "saved as draft" : "launched"} successfully!`)
     } catch (error) {
       console.error("Failed to save campaign:", error)
-      toast.error("Failed to save campaign")
+      alert("Failed to save campaign")
     } finally {
       setLoading(false)
     }
@@ -142,7 +154,7 @@ export function CampaignBuilder() {
                     onClick={() => handleTypeSelect(type.id)}
                   >
                     <CardHeader className="text-center">
-                      {type.icon && <type.icon className="h-12 w-12 mx-auto mb-2 text-blue-600" />}
+                      <type.icon className="h-12 w-12 mx-auto mb-2 text-blue-600" />
                       <CardTitle className="text-lg">{type.name}</CardTitle>
                       <CardDescription>{type.description}</CardDescription>
                     </CardHeader>
@@ -165,28 +177,28 @@ export function CampaignBuilder() {
                     <Input
                       id="name"
                       value={campaignData.name}
-                      onChange={(e) => setCampaignData(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => setCampaignData((prev) => ({ ...prev, name: e.target.value }))}
                       placeholder="Enter campaign name"
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
                       value={campaignData.description}
-                      onChange={(e) => setCampaignData(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e) => setCampaignData((prev) => ({ ...prev, description: e.target.value }))}
                       placeholder="Describe your campaign"
                     />
                   </div>
 
-                  {campaignData.type === 'email' && (
+                  {campaignData.type === "email" && (
                     <div>
                       <Label htmlFor="subject">Email Subject</Label>
                       <Input
                         id="subject"
                         value={campaignData.subject}
-                        onChange={(e) => setCampaignData(prev => ({ ...prev, subject: e.target.value }))}
+                        onChange={(e) => setCampaignData((prev) => ({ ...prev, subject: e.target.value }))}
                         placeholder="Enter email subject"
                       />
                     </div>
@@ -197,20 +209,19 @@ export function CampaignBuilder() {
                   <div>
                     <Label>Selected Type</Label>
                     <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
-                      {campaignTypes.find(t => t.id === campaignData.type)?.icon && (\
-                        <campaignTypes.find(t => t.id === campaignData.type)!.icon className="h-5 w-5 text-blue-600" />
-                      )}
-                      <span className="font-medium">
-                        {campaignTypes.find(t => t.id === campaignData.type)?.name}
-                      </span>
+                      {campaignTypes.find((t) => t.id === campaignData.type)?.icon &&
+                        React.createElement(campaignTypes.find((t) => t.id === campaignData.type)!.icon, {
+                          className: "h-5 w-5 text-blue-600",
+                        })}
+                      <span className="font-medium">{campaignTypes.find((t) => t.id === campaignData.type)?.name}</span>
                     </div>
                   </div>
 
                   <div>
                     <Label>Template (Optional)</Label>
-                    <Select 
-                      value={campaignData.template_id} 
-                      onValueChange={(value) => setCampaignData(prev => ({ ...prev, template_id: value }))}
+                    <Select
+                      value={campaignData.template_id}
+                      onValueChange={(value) => setCampaignData((prev) => ({ ...prev, template_id: value }))}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Choose a template" />
@@ -234,7 +245,7 @@ export function CampaignBuilder() {
               <h4 className="font-semibold mb-3">Message Content</h4>
               <Textarea
                 value={campaignData.content}
-                onChange={(e) => setCampaignData(prev => ({ ...prev, content: e.target.value }))}
+                onChange={(e) => setCampaignData((prev) => ({ ...prev, content: e.target.value }))}
                 placeholder="Enter your message content..."
                 className="min-h-[200px]"
               />
@@ -244,9 +255,7 @@ export function CampaignBuilder() {
               <Button variant="outline" onClick={() => setCurrentStep(1)}>
                 Back
               </Button>
-              <Button onClick={() => setCurrentStep(3)}>
-                Next: Audience
-              </Button>
+              <Button onClick={() => setCurrentStep(3)}>Next: Audience</Button>
             </div>
           </div>
         )
@@ -421,7 +430,7 @@ export function CampaignBuilder() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto p-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Campaign Builder</h1>
         <p className="text-gray-600 mt-2">Create and launch multi-channel marketing campaigns</p>
