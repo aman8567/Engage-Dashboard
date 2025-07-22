@@ -8,8 +8,16 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Mail,
   MessageSquare,
@@ -126,14 +134,14 @@ export function UnifiedInbox() {
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
 
     if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
     } else {
       return date.toLocaleDateString()
     }
   }
 
-  const getUnreadCount = () => messages.filter(m => m.status === 'unread').length
-  const getHighPriorityCount = () => messages.filter(m => m.priority === 'high' || m.priority === 'urgent').length
+  const getUnreadCount = () => messages.filter((m) => m.status === "unread").length
+  const getHighPriorityCount = () => messages.filter((m) => m.priority === "high" || m.priority === "urgent").length
 
   return (
     <div className="space-y-6">
@@ -210,7 +218,10 @@ export function UnifiedInbox() {
                 <Input placeholder="Search messages..." className="pl-8" />
               </div>
             </div>
-            <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+            <Select
+              value={filters.status}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
+            >
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -222,7 +233,10 @@ export function UnifiedInbox() {
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filters.channel} onValueChange={(value) => setFilters(prev => ({ ...prev, channel: value }))}>
+            <Select
+              value={filters.channel}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, channel: value }))}
+            >
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Channel" />
               </SelectTrigger>
@@ -235,7 +249,10 @@ export function UnifiedInbox() {
                 <SelectItem value="social">Social</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filters.priority} onValueChange={(value) => setFilters(prev => ({ ...prev, priority: value }))}>
+            <Select
+              value={filters.priority}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, priority: value }))}
+            >
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Priority" />
               </SelectTrigger>
@@ -265,12 +282,9 @@ export function UnifiedInbox() {
             <TableBody>
               {messages.map((message) => {
                 const ChannelIcon = getChannelIcon(message.channel_type)
-                
+
                 return (
-                  <TableRow 
-                    key={message.id} 
-                    className={message.status === 'unread' ? 'bg-blue-50' : ''}
-                  >
+                  <TableRow key={message.id} className={message.status === "unread" ? "bg-blue-50" : ""}>
                     <TableCell>
                       <div>
                         <div className="font-medium">
@@ -289,12 +303,8 @@ export function UnifiedInbox() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        {message.subject && (
-                          <div className="font-medium text-sm">{message.subject}</div>
-                        )}
-                        <div className="text-sm text-gray-600 truncate max-w-xs">
-                          {message.content}
-                        </div>
+                        {message.subject && <div className="font-medium text-sm">{message.subject}</div>}
+                        <div className="text-sm text-gray-600 truncate max-w-xs">{message.content}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -317,31 +327,23 @@ export function UnifiedInbox() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-gray-500">
-                        {formatDate(message.created_at)}
-                      </span>
+                      <span className="text-sm text-gray-500">{formatDate(message.created_at)}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-1">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setSelectedMessage(message)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setSelectedMessage(message)}>
                           <Send className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
-                          onClick={() => handleStatusChange(message.id, message.status === 'unread' ? 'read' : 'unread')}
+                          onClick={() =>
+                            handleStatusChange(message.id, message.status === "unread" ? "read" : "unread")
+                          }
                         >
                           <Mail className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleStatusChange(message.id, 'archived')}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleStatusChange(message.id, "archived")}>
                           <Archive className="h-4 w-4" />
                         </Button>
                       </div>
@@ -374,11 +376,70 @@ export function UnifiedInbox() {
               <div>
                 <Label className="text-sm font-medium">Original Message:</Label>
                 <div className="bg-gray-50 p-3 rounded mt-1">
-                  {selectedMessage.subject && (
-                    <div className="font-medium mb-2">{selectedMessage.subject}</div>
-                  )}
+                  {selectedMessage.subject && <div className="font-medium mb-2">{selectedMessage.subject}</div>}
                   <div className="text-sm whitespace-pre-wrap">{selectedMessage.content}</div>
                 </div>
               </div>
 
-              \
+              <div>
+                <Label htmlFor="reply">Your Reply:</Label>
+                <Textarea
+                  id="reply"
+                  value={replyContent}
+                  onChange={(e) => setReplyContent(e.target.value)}
+                  placeholder="Type your reply..."
+                  className="mt-1 min-h-[120px]"
+                />
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <Label>Assign to:</Label>
+                  <Select
+                    value={selectedMessage.assigned_to || ""}
+                    onValueChange={(value) => handleAssignMessage(selectedMessage.id, value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team member" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamMembers.map((member: any) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.first_name} {member.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Priority:</Label>
+                  <Select defaultValue={selectedMessage.priority}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="urgent">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSelectedMessage(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleReply} disabled={!replyContent.trim()}>
+                <Send className="h-4 w-4 mr-2" />
+                Send Reply
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  )
+}

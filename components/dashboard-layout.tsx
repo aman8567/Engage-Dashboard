@@ -1,33 +1,11 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import {
-  BarChart3,
-  Users,
-  Zap,
-  Settings,
-  Monitor,
-  Bell,
-  Search,
-  Menu,
-  Home,
-  Filter,
-  Send,
-  MessageSquare,
-  Phone,
-  Building,
-  Target,
-  Workflow,
-  Mail,
-} from "lucide-react"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,119 +14,243 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
+import {
+  BarChart3,
+  Calendar,
+  Users,
+  MessageSquare,
+  Settings,
+  Bell,
+  Search,
+  User,
+  LogOut,
+  Home,
+  Target,
+  Inbox,
+  UserCheck,
+  Zap,
+  TrendingUp,
+  Shield,
+  Smartphone,
+  Globe,
+  Plus,
+  ChevronDown,
+} from "lucide-react"
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: Home },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
-  { name: "Events", href: "/events", icon: Zap },
-  { name: "Segments", href: "/segments", icon: Filter },
-  { name: "Campaigns", href: "/campaigns", icon: Send },
-  { name: "Campaign Builder", href: "/campaigns/builder", icon: Target },
-  { name: "Users", href: "/users", icon: Users },
-  { name: "Contacts", href: "/contacts", icon: Building },
-  { name: "Inbox", href: "/inbox", icon: MessageSquare },
-  { name: "Workflows", href: "/workflows", icon: Workflow },
-  { name: "Templates", href: "/templates", icon: Mail },
-  { name: "Integrations", href: "/integrations", icon: Phone },
-  { name: "Settings", href: "/settings", icon: Settings },
-  { name: "Monitoring", href: "/monitoring", icon: Monitor },
+  {
+    title: "Overview",
+    items: [
+      { name: "Dashboard", href: "/", icon: Home },
+      { name: "Analytics", href: "/analytics", icon: BarChart3 },
+      { name: "Inbox", href: "/inbox", icon: Inbox, badge: "3" },
+    ],
+  },
+  {
+    title: "Campaigns",
+    items: [
+      { name: "All Campaigns", href: "/campaigns", icon: Target },
+      { name: "Create Campaign", href: "/campaigns/builder", icon: Plus },
+      { name: "Templates", href: "/templates", icon: Calendar },
+      { name: "A/B Tests", href: "/ab-tests", icon: Zap },
+    ],
+  },
+  {
+    title: "Audience",
+    items: [
+      { name: "Users", href: "/users", icon: Users },
+      { name: "Segments", href: "/segments", icon: UserCheck },
+      { name: "Events", href: "/events", icon: TrendingUp },
+      { name: "Journeys", href: "/journeys", icon: Globe },
+    ],
+  },
+  {
+    title: "Channels",
+    items: [
+      { name: "Email", href: "/channels/email", icon: MessageSquare },
+      { name: "SMS", href: "/channels/sms", icon: Smartphone },
+      { name: "Push", href: "/channels/push", icon: Bell },
+      { name: "WhatsApp", href: "/channels/whatsapp", icon: MessageSquare },
+    ],
+  },
+  {
+    title: "Settings",
+    items: [
+      { name: "Account", href: "/settings", icon: Settings },
+      { name: "Team", href: "/settings/team", icon: Users },
+      { name: "Integrations", href: "/settings/integrations", icon: Zap },
+      { name: "Security", href: "/settings/security", icon: Shield },
+    ],
+  },
 ]
 
-interface DashboardLayoutProps {
-  children: React.ReactNode
-}
-
-export function DashboardLayout({ children }: DashboardLayoutProps) {
+export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg">
-        <div className="flex h-16 items-center px-6 border-b">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">ME</span>
-            </div>
-            <span className="text-xl font-bold text-gray-900">MoEngage</span>
-          </div>
-        </div>
-
-        <nav className="mt-6 px-3">
-          <div className="space-y-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                    isActive
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                  )}
-                >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                </Link>
-              )
-            })}
-          </div>
-        </nav>
-      </div>
-
-      {/* Main content */}
-      <div className="pl-64">
-        {/* Top header */}
-        <header className="bg-white shadow-sm border-b">
-          <div className="flex h-16 items-center justify-between px-6">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" className="md:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input placeholder="Search users, campaigns, events..." className="pl-10 w-80" />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm">
-                <Bell className="h-5 w-5" />
-              </Button>
-
+    <SidebarProvider>
+      <Sidebar variant="inset">
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src="/placeholder.svg" alt="User" />
-                      <AvatarFallback>JD</AvatarFallback>
-                    </Avatar>
-                  </Button>
+                  <SidebarMenuButton
+                    size="lg"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  >
+                    <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                      <Target className="size-4" />
+                    </div>
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">MoEngage Clone</span>
+                      <span className="truncate text-xs">Enterprise</span>
+                    </div>
+                    <ChevronDown className="ml-auto" />
+                  </SidebarMenuButton>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">John Doe</p>
-                      <p className="text-xs leading-none text-muted-foreground">john@company.com</p>
+                <DropdownMenuContent
+                  className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                  align="start"
+                  side="bottom"
+                  sideOffset={4}
+                >
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Workspaces</DropdownMenuLabel>
+                  <DropdownMenuItem>
+                    <div className="flex size-6 items-center justify-center rounded-sm border">
+                      <Target className="size-4 shrink-0" />
+                    </div>
+                    MoEngage Clone
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <div className="flex size-6 items-center justify-center rounded-sm border">
+                      <Plus className="size-4 shrink-0" />
+                    </div>
+                    Add workspace
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+        <SidebarContent>
+          {navigation.map((group) => (
+            <SidebarGroup key={group.title}>
+              <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => (
+                    <SidebarMenuItem key={item.name}>
+                      <SidebarMenuButton asChild isActive={pathname === item.href}>
+                        <Link href={item.href}>
+                          <item.icon />
+                          <span>{item.name}</span>
+                          {item.badge && (
+                            <Badge variant="secondary" className="ml-auto">
+                              {item.badge}
+                            </Badge>
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
+        </SidebarContent>
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <SidebarMenuButton
+                    size="lg"
+                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                  >
+                    <User className="size-8 rounded-lg" />
+                    <div className="grid flex-1 text-left text-sm leading-tight">
+                      <span className="truncate font-semibold">John Doe</span>
+                      <span className="truncate text-xs">john@company.com</span>
+                    </div>
+                    <ChevronDown className="ml-auto size-4" />
+                  </SidebarMenuButton>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                  side="bottom"
+                  align="end"
+                  sideOffset={4}
+                >
+                  <DropdownMenuLabel className="p-0 font-normal">
+                    <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                      <User className="size-8 rounded-lg" />
+                      <div className="grid flex-1 text-left text-sm leading-tight">
+                        <span className="truncate font-semibold">John Doe</span>
+                        <span className="truncate text-xs">john@company.com</span>
+                      </div>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <User />
+                    Account
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings />
+                    Settings
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Log out</DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <LogOut />
+                    Log out
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <div className="h-4 w-px bg-sidebar-border" />
+            <div className="flex flex-1 items-center gap-2 text-sm">
+              <span className="font-semibold">MoEngage Clone</span>
+            </div>
+          </div>
+          <div className="ml-auto px-3">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input type="search" placeholder="Search..." className="w-64 pl-8" />
+              </div>
+              <Button variant="ghost" size="icon">
+                <Bell className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </header>
-
-        {/* Page content */}
-        <main className="p-6">{children}</main>
-      </div>
-    </div>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
